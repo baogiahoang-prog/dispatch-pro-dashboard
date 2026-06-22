@@ -48,3 +48,5 @@ File `.exe` xuất ra tại `dist\DispatchProDashboard.exe`. Cần copy `credent
 ## Giấy phép
 
 (Thêm license bạn muốn dùng, ví dụ MIT)
+## Changelog
+- 2026-06-23: Test cập nhật qua Git
