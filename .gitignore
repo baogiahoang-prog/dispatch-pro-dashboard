@@ -1,0 +1,21 @@
+# Thông tin nhạy cảm - KHÔNG đưa lên GitHub
+credentials.json
+app_config.json
+
+# File build PyInstaller
+build/
+dist/
+*.spec
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Môi trường ảo (nếu có dùng)
+venv/
+.venv/
+
+# OS junk
+.DS_Store
+Thumbs.db
