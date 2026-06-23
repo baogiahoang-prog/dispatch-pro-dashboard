@@ -10,6 +10,11 @@ import webbrowser
 
 PORT = 8501
 
+# FIX: khi đóng gói bằng PyInstaller, Streamlit tự nhận lầm là đang ở development mode,
+# khiến nó từ chối nhận --server.port (lỗi "server.port does not work when
+# global.developmentMode is true"). Phải set biến môi trường này TRƯỚC khi import streamlit.
+os.environ["STREAMLIT_GLOBAL_DEVELOPMENT_MODE"] = "false"
+
 
 def _resource_dir():
     # Khi chạy từ .exe (PyInstaller), file gốc nằm cùng thư mục với .exe.
@@ -36,6 +41,7 @@ def main():
         "--server.port", str(PORT),
         "--server.headless", "true",
         "--browser.gatherUsageStats", "false",
+        "--global.developmentMode", "false",
     ]
     sys.exit(stcli.main())
 
