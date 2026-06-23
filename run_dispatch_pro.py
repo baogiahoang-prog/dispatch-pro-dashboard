@@ -15,6 +15,16 @@ PORT = 8501
 # global.developmentMode is true"). Phải set biến môi trường này TRƯỚC khi import streamlit.
 os.environ["STREAMLIT_GLOBAL_DEVELOPMENT_MODE"] = "false"
 
+# FIX: dispatch_pro_app.py KHÔNG được import trực tiếp ở file này — nó được Streamlit
+# tự đọc đường dẫn và chạy lúc runtime. Vì vậy PyInstaller (chỉ quét các import trong
+# file này) không biết app kia cần gspread/oauth2client/pandas nên không đóng gói vào
+# .exe, gây lỗi "ModuleNotFoundError: No module named 'gspread'" khi chạy file .exe.
+# Các import dưới đây không được dùng trực tiếp, nhưng bắt buộc phải có để PyInstaller
+# nhận diện và đóng gói đúng các thư viện mà dispatch_pro_app.py cần.
+import gspread  # noqa: F401
+from oauth2client.service_account import ServiceAccountCredentials  # noqa: F401
+import pandas  # noqa: F401
+
 
 def _resource_dir():
     # Khi chạy từ .exe (PyInstaller), file gốc nằm cùng thư mục với .exe.
