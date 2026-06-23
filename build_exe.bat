@@ -61,15 +61,50 @@ exit /b 1
 echo   -> OK, da co pip.
 echo.
 
-echo [2/4] Dang cai thu vien can thiet (requirements + pyinstaller)...
+echo [2/4] Dang cai thu vien can thiet (tung dong duoc kiem tra rieng)...
+
 %PY% -m pip install --upgrade pip
-%PY% -m pip install -r requirements.txt
-%PY% -m pip install pyinstaller
 if errorlevel 1 (
-    echo  Cai thu vien bi loi, xem thong bao loi o tren.
+    echo  LOI: nang cap pip bi loi. Xem thong bao loi o tren.
     pause
     exit /b 1
 )
+
+%PY% -m pip install -r requirements.txt
+if errorlevel 1 (
+    echo  ============================================================
+    echo   LOI: CAI THU VIEN TRONG requirements.txt BI LOI.
+    echo   Xem dong loi mau do o phia tren de biet thu vien nao bi loi.
+    echo   (Thuong gap: python-calamine can cong cu build Rust, neu loi
+    echo    co the mo requirements.txt va xoa dong "python-calamine" roi
+    echo    chay lai - day la thu vien toi uu, khong bat buoc.)
+    echo  ============================================================
+    pause
+    exit /b 1
+)
+
+%PY% -m pip install pyinstaller
+if errorlevel 1 (
+    echo  LOI: cai pyinstaller bi loi. Xem thong bao loi o tren.
+    pause
+    exit /b 1
+)
+
+echo   -> OK, da cai xong toan bo thu vien.
+echo.
+
+echo [2.5/4] Dang kiem tra cac thu vien quan trong da co chua...
+%PY% -c "import gspread, oauth2client, pandas, streamlit" 2>&1
+if errorlevel 1 (
+    echo  ============================================================
+    echo   LOI: mot trong cac thu vien quan trong (gspread / oauth2client /
+    echo   pandas / streamlit) CHUA duoc cai dung. Xem loi cu the o tren.
+    echo   Thu chay thu cong: %PY% -m pip install gspread oauth2client
+    echo  ============================================================
+    pause
+    exit /b 1
+)
+echo   -> OK, da xac nhan day du thu vien.
 echo.
 
 echo [3/4] Dang build file .exe (co the mat vai phut)...
@@ -78,6 +113,10 @@ echo [3/4] Dang build file .exe (co the mat vai phut)...
     --collect-all altair ^
     --collect-all pandas ^
     --collect-all pyarrow ^
+    --collect-all gspread ^
+    --collect-all oauth2client ^
+    --hidden-import gspread ^
+    --hidden-import oauth2client.service_account ^
     run_dispatch_pro.py
 if errorlevel 1 (
     echo  Build .exe bi loi, xem thong bao loi o tren.
