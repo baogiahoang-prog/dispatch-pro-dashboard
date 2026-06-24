@@ -44,7 +44,7 @@ echo Dang dung Python:
 %PY% --version
 echo.
 
-echo [1/4] Dang kiem tra pip...
+echo [1/5] Dang kiem tra pip...
 %PY% -m pip --version >nul 2>&1
 if not errorlevel 1 goto have_pip
 
@@ -61,53 +61,69 @@ exit /b 1
 echo   -> OK, da co pip.
 echo.
 
-echo [2/4] Dang cai thu vien can thiet (tung dong duoc kiem tra rieng)...
-
+echo [2/5] Dang nang cap pip...
 %PY% -m pip install --upgrade pip
-if errorlevel 1 (
-    echo  LOI: nang cap pip bi loi. Xem thong bao loi o tren.
-    pause
-    exit /b 1
-)
+if errorlevel 1 goto loi_pip_upgrade
+goto cai_requirements
 
+:loi_pip_upgrade
+echo  LOI: nang cap pip bi loi. Xem thong bao loi o tren.
+pause
+exit /b 1
+
+:cai_requirements
+echo.
+echo [3/5] Dang cai thu vien trong requirements.txt...
 %PY% -m pip install -r requirements.txt
-if errorlevel 1 (
-    echo  ============================================================
-    echo   LOI: CAI THU VIEN TRONG requirements.txt BI LOI.
-    echo   Xem dong loi mau do o phia tren de biet thu vien nao bi loi.
-    echo   (Thuong gap: python-calamine can cong cu build Rust, neu loi
-    echo    co the mo requirements.txt va xoa dong "python-calamine" roi
-    echo    chay lai - day la thu vien toi uu, khong bat buoc.)
-    echo  ============================================================
-    pause
-    exit /b 1
-)
+if errorlevel 1 goto loi_requirements
+goto cai_pyinstaller
 
+:loi_requirements
+echo  ============================================================
+echo   LOI: CAI THU VIEN TRONG requirements.txt BI LOI.
+echo   Xem dong loi mau do o phia tren de biet thu vien nao bi loi.
+echo   Thuong gap: python-calamine can cong cu build Rust de cai.
+echo   Neu loi, co the mo file requirements.txt, xoa dong chua chu
+echo   python-calamine, luu lai, roi chay lai file nay - day la thu
+echo   vien toi uu, khong bat buoc phai co.
+echo  ============================================================
+pause
+exit /b 1
+
+:cai_pyinstaller
+echo.
+echo [4/5] Dang cai pyinstaller...
 %PY% -m pip install pyinstaller
-if errorlevel 1 (
-    echo  LOI: cai pyinstaller bi loi. Xem thong bao loi o tren.
-    pause
-    exit /b 1
-)
+if errorlevel 1 goto loi_pyinstaller
+goto kiem_tra_import
 
+:loi_pyinstaller
+echo  LOI: cai pyinstaller bi loi. Xem thong bao loi o tren.
+pause
+exit /b 1
+
+:kiem_tra_import
 echo   -> OK, da cai xong toan bo thu vien.
 echo.
-
-echo [2.5/4] Dang kiem tra cac thu vien quan trong da co chua...
+echo [4.5/5] Dang kiem tra cac thu vien quan trong da co chua...
 %PY% -c "import gspread, oauth2client, pandas, streamlit" 2>&1
-if errorlevel 1 (
-    echo  ============================================================
-    echo   LOI: mot trong cac thu vien quan trong (gspread / oauth2client /
-    echo   pandas / streamlit) CHUA duoc cai dung. Xem loi cu the o tren.
-    echo   Thu chay thu cong: %PY% -m pip install gspread oauth2client
-    echo  ============================================================
-    pause
-    exit /b 1
-)
+if errorlevel 1 goto loi_import
+goto build_now
+
+:loi_import
+echo  ============================================================
+echo   LOI: mot trong cac thu vien quan trong CHUA duoc cai dung.
+echo   Xem loi cu the o phia tren.
+echo   Thu chay thu cong: %PY% -m pip install gspread oauth2client
+echo  ============================================================
+pause
+exit /b 1
+
+:build_now
 echo   -> OK, da xac nhan day du thu vien.
 echo.
 
-echo [3/4] Dang build file .exe (co the mat vai phut)...
+echo [5/5] Dang build file .exe (co the mat vai phut)...
 %PY% -m PyInstaller --onefile --noconsole --name DispatchProDashboard ^
     --collect-all streamlit ^
     --collect-all altair ^
@@ -118,14 +134,17 @@ echo [3/4] Dang build file .exe (co the mat vai phut)...
     --hidden-import gspread ^
     --hidden-import oauth2client.service_account ^
     run_dispatch_pro.py
-if errorlevel 1 (
-    echo  Build .exe bi loi, xem thong bao loi o tren.
-    pause
-    exit /b 1
-)
-echo.
+if errorlevel 1 goto loi_build
+goto copy_files
 
-echo [4/4] Dang copy cac file can thiet vao thu muc dist...
+:loi_build
+echo  Build .exe bi loi, xem thong bao loi o tren.
+pause
+exit /b 1
+
+:copy_files
+echo.
+echo Dang copy cac file can thiet vao thu muc dist...
 copy /Y "dispatch_pro_app.py" "dist\dispatch_pro_app.py" >nul
 
 if exist "credentials.json" copy /Y "credentials.json" "dist\credentials.json" >nul
