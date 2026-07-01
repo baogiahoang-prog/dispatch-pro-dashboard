@@ -6,6 +6,8 @@ from datetime import datetime, time, timedelta
 import json
 import os
 import io
+import ssl
+import time as time_module
 import concurrent.futures
 
 # --- CẤU HÌNH ---
@@ -13,6 +15,38 @@ CREDS_FILE = 'credentials.json'
 SHEET_ID = '1CZp2eL36miIDZNJPgnhSXkdNoea8nCNGbBkM1jB8d-E'
 CONFIG_FILE = 'app_config.json'
 DEFAULT_STATUS = ['Created', 'Pending Pick', 'Picking', 'Picked', 'Checking', 'Checked', 'Packing', 'Packed']
+
+# --- NETWORK / SSL: máy công ty thường có proxy chặn/can thiệp SSL khi gọi Google API.
+# Nếu IT có cấp file CA bundle của công ty (vd: company-ca.pem), đặt nó cùng thư mục với
+# app và đổi tên biến COMPANY_CA_BUNDLE bên dưới -> requests/gspread sẽ tự tin tưởng nó.
+COMPANY_CA_BUNDLE = "company-ca.pem"  # đổi tên file thật nếu IT cấp cho bạn
+if os.path.exists(COMPANY_CA_BUNDLE):
+    os.environ.setdefault("REQUESTS_CA_BUNDLE", os.path.abspath(COMPANY_CA_BUNDLE))
+    os.environ.setdefault("SSL_CERT_FILE", os.path.abspath(COMPANY_CA_BUNDLE))
+
+
+def connect_google_sheet(creds_file, sheet_id, max_retries=3, base_delay=2):
+    """Kết nối Google Sheets với retry cho các lỗi mạng/SSL tạm thời
+    (thường gặp trên mạng công ty có proxy/firewall can thiệp SSL)."""
+    last_err = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            creds = ServiceAccountCredentials.from_json_keyfile_name(
+                creds_file, ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+            )
+            return gspread.authorize(creds).open_by_key(sheet_id)
+        except (ssl.SSLError, ConnectionError, OSError) as e:
+            last_err = e
+            if attempt < max_retries:
+                time_module.sleep(base_delay * attempt)  # backoff: 2s, 4s, 6s...
+                continue
+    raise ConnectionError(
+        "Không thể kết nối tới Google Sheets do lỗi mạng/SSL sau nhiều lần thử. "
+        "Nguyên nhân thường gặp trên mạng công ty: proxy/firewall chặn hoặc can thiệp SSL "
+        "tới googleapis.com. Vui lòng thử lại khi dùng mạng khác (vd 4G/wifi nhà), hoặc "
+        f"liên hệ IT để xin whitelist domain 'googleapis.com' / file CA bundle công ty. "
+        f"(Chi tiết lỗi gốc: {last_err})"
+    )
 
 st.set_page_config(page_title="Dispatch Pro Dashboard", layout="wide")
 
@@ -284,8 +318,8 @@ if st.button("🚀 CHẠY TẤT CẢ", key="run_report"):
                 st.info(f"📅 Đang lọc theo khoảng ngày: **{eff_start} → {eff_end}** "
                         f"(giao giữa lịch đã chọn **{date_start} → {date_end}** và dữ liệu thực tế trong file **{file_min} → {file_max}**)")
 
-        creds = ServiceAccountCredentials.from_json_keyfile_name(CREDS_FILE, ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"])
-        ss = gspread.authorize(creds).open_by_key(SHEET_ID)
+        with st.spinner("🔌 Đang kết nối Google Sheets..."):
+            ss = connect_google_sheet(CREDS_FILE, SHEET_ID)
 
         for t in tools:
             if t == "Report D2H Đối Soát":
@@ -324,5 +358,7 @@ if st.button("🚀 CHẠY TẤT CẢ", key="run_report"):
                 ws_ov = ss.worksheet("Overview AHM - SDD") if "Overview AHM - SDD" in [w.title for w in ss.worksheets()] else ss.add_worksheet("Overview AHM - SDD", 100, 50)
                 ws_ov.clear(); ws_ov.update(values=ov_table, range_name='A1'); st.write("✅ Overview: Done")
         st.balloons()
+    except ConnectionError as e:
+        st.error(f"🌐 Lỗi kết nối mạng: {e}")
     except Exception as e:
         st.error(f"Error: {e}")
